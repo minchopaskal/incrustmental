@@ -7,16 +7,17 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'incrustmental'",
+            "name": "Debug unit tests in library 'incrustmental'",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=incrustmental",
+                    "test",
+                    "--no-run",
+                    "--lib",
                     "--package=incrustmental"
                 ],
                 "filter": {
                     "name": "incrustmental",
-                    "kind": "bin"
+                    "kind": "lib"
                 }
             },
             "args": [],
@@ -25,17 +26,35 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'incrustmental'",
+            "name": "Debug example 'bevy'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=bevy",
+                    "--package=incrustmental"
+                ],
+                "filter": {
+                    "name": "bevy",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'bevy'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=incrustmental",
+                    "--example=bevy",
                     "--package=incrustmental"
                 ],
                 "filter": {
-                    "name": "incrustmental",
-                    "kind": "bin"
+                    "name": "bevy",
+                    "kind": "example"
                 }
             },
             "args": [],
