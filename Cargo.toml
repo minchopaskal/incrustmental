@@ -6,8 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.71"
 derive-getters = "0.2.1"
 rand = "0.8.5"
+serde = { version = "1.0.162", features = ["derive"] }
+serde_json = "1.0.96"
+serde_yaml = "0.9.21"
 
 [dev-dependencies]
 bevy = "0.10.1"

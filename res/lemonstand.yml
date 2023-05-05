@@ -1,0 +1,63 @@
+money: 0.0
+objective: 
+  - !Money 10000.0
+  - !Product [0, 200]
+materials:
+  - init_bought: 4
+    kind: "Shop"
+    base_price: 1.0
+    growth: 1.07
+    unlocked: true
+  - init_bought: 100
+    kind: "Lemon"
+    base_price: 0.10
+    growth: 1.07
+    unlocked: true
+products:
+  - name: "Lemonade"
+    price: 1.0
+    dependencies:
+      - kind: ManifacturedBy
+        quantity: !Material [0, 1]
+      - kind: Consumes
+        quantity: !Material [1, 2]
+      - kind: SoldBy
+        quantity: !Material [0, 1]
+    perks: [0]
+    unlocks: []
+    unlocked: true
+badges:
+  - name: "King of the lemonade trade"
+    desc: "Sold 10 lemonades"
+    condition:
+      - !Product [0, 10]
+  - name: "Lemonade emperor"
+    desc: "Sold 200 lemonades"
+    condition:
+      - !Product [0, 200]
+perks:
+  - name: "Lemonficcient"
+    desc: "Each lemon produces 10 times more lemonade"
+    condition:
+      - !Product [0, 100]
+    buy_price:
+      - !Money 10.0
+      - !Material [1, 100]
+    perk:
+      - !Product [0, 10]
+      - Multiply
+automations:
+  - name: "Lemonade Machine"
+    kind: !Build 0
+    timer:
+      duration:
+        secs: 1
+        nanos: 0
+      elapsed:
+        secs: 0
+        nanos: 0
+    condition:
+      - !Product [0, 100]
+    buy_price:
+      - !Material [0, 10]
+      

@@ -1,15 +1,15 @@
 use std::time::Duration;
-
 use rand::Rng;
-
 use derive_getters::Getters;
+use serde::Deserialize;
 
 use crate::prelude::AutomationId;
 use crate::types::{Count, PerkId, Price, ProductId, ProductMaterialId};
+use crate::serde::ProductMaterialDef;
 
 use crate::timer::Timer;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub enum Quantity {
     Money(Price),
     Material(ProductMaterialId, Count),
@@ -69,7 +69,7 @@ impl Quantity {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum RelationKind {
     Consumes,
     ManifacturedBy,
@@ -77,7 +77,7 @@ pub enum RelationKind {
     Needs,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub struct Relation {
     kind: RelationKind,
     quantity: Quantity,
@@ -146,17 +146,25 @@ impl Relation {
 // F.e ProductMaterial may be a Shop which sells certain product.
 // In that case the product will have a dependancy to that material
 // with RelationKind::SoldBy.
+#[derive(Deserialize)]
+#[serde(from="ProductMaterialDef")]
 pub struct ProductMaterial {
+    name: String,
     base_price: Price,
     bought: Count,
     count: Count,
-    name: String,
     growth: f64,
     active: bool, // wether or not the product unlocked for the player
 }
 
 impl ProductMaterial {
-    pub fn new(init_bought: Count, kind: String, base_price: Price, growth: f64, unlocked: bool) -> Self {
+    pub fn new(
+        init_bought: Count,
+        kind: String,
+        base_price: Price,
+        growth: f64,
+        unlocked: bool
+    ) -> Self {
         Self {
             bought: init_bought,
             name: kind,
@@ -197,7 +205,7 @@ impl ProductMaterial {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Deserialize)]
 pub enum PerkKind {
     Add,
     Substract,
@@ -205,13 +213,19 @@ pub enum PerkKind {
     Divide,
 }
 
+#[derive(Deserialize)]
 pub struct Perk {
     name: String,
+    #[serde(alias = "desc")]
     description: String,
     condition: Vec<Quantity>, // Always a Needs relation
     buy_price: Vec<Quantity>, // Always a Consume relation
     perk: (Quantity, PerkKind),
+
+    #[serde(skip)]
     unlocked: bool,
+
+    #[serde(skip)]
     active: bool,
 }
 
@@ -271,14 +285,20 @@ impl Perk {
     }
 }
 
+#[derive(Deserialize)]
 pub struct Product {
-    name: String,
+    #[serde(skip)]
     count: Count,
-    price: Option<Price>,
+    #[serde(skip)]
     sold: Count,
+
+    name: String,
+    price: Option<Price>,
     dependencies: Vec<Relation>,
     perks: Vec<PerkId>,
     unlocks: Vec<(ProductId, Count)>,
+
+    #[serde(alias = "unlocked")]
     active: bool,
 }
 
@@ -312,7 +332,7 @@ impl Product {
     }
 
     pub fn sold(&self) -> Count {
-        self.count
+        self.sold
     }
 
     pub fn interest(&self) -> f64 {
@@ -421,20 +441,27 @@ impl Product {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Deserialize)]
 pub enum AutomationKind {
     Buy(ProductMaterialId),
     Build(ProductId),
 }
 
+#[derive(Deserialize)]
 pub struct Automation {
     name: String,
     kind: AutomationKind,
     timer: Option<Timer>,
     condition: Vec<Quantity>,
     buy_price: Vec<Quantity>,
+
+    #[serde(skip)]
     paused: bool,
+
+    #[serde(skip)]
     unlocked: bool,
+    
+    #[serde(skip)]
     active: bool,
 }
 
@@ -524,10 +551,14 @@ impl Automation {
     }
 }
 
+#[derive(Deserialize)]
 pub struct Badge {
     name: String,
+    #[serde(alias = "desc")]
     description: String, // We let the designer write his custom description
     condition: Vec<Quantity>,
+
+    #[serde(skip)]
     unlocked: bool,
 }
 
@@ -566,7 +597,7 @@ impl Badge {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub struct Objective(Vec<Quantity>);
 
 impl Objective {
@@ -579,17 +610,21 @@ impl Objective {
     }
 }
 
-#[derive(Default, Getters)]
+#[derive(Default, Getters, Deserialize)]
 pub struct State {
     #[getter(skip)]
+    #[serde(alias = "init_money")]
     money: f64,
+    
     objective: Objective,
     materials: Vec<ProductMaterial>,
     products: Vec<Product>,
     badges: Vec<Badge>,
     perks: Vec<Perk>,
     automations: Vec<Automation>,
+
     #[getter(skip)]
+    #[serde(skip)]
     win: bool,
 }
 
@@ -615,6 +650,7 @@ impl State {
         }
     }
 
+    #[inline]
     fn quantity_present_count(&self, q: &Quantity) -> Count {
         match q {
             Quantity::Money(money) => (self.money / *money).floor() as Count,
@@ -623,9 +659,14 @@ impl State {
         }
     }
 
+    #[inline]
+    fn check_condition(&self, conds: &Quantity) -> bool {
+        self.quantity_present_count(conds) > 0
+    }
+
     fn check_conditions(&self, conds: &[Quantity]) -> bool {
         for cond in conds.iter() {
-            if self.quantity_present_count(cond) == 0 {
+            if !self.check_condition(cond) {
                 return false;
             }
         }

@@ -1,3 +1,5 @@
+mod serde;
+
 pub mod incremental;
 pub mod loader;
 pub mod timer;
