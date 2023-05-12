@@ -1,6 +1,6 @@
-use std::{path::Path, io::BufReader, fs::File};
-use anyhow::{anyhow, Result};
 use crate::incremental::State;
+use anyhow::{anyhow, Result};
+use std::{fs::File, io::BufReader, path::Path};
 
 pub fn load(file_path: &Path) -> Result<State> {
     let file = File::open(file_path)?;

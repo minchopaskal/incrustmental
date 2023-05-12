@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
+use crate::serde::TimerDef;
+
 #[derive(Deserialize)]
+#[serde(from = "TimerDef")]
 pub struct Timer {
     duration: Duration,
     elapsed: Duration,

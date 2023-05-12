@@ -11,7 +11,7 @@ materials:
   - init_bought: 100
     kind: "Lemon"
     base_price: 0.10
-    growth: 1.07
+    growth: 1.02
     unlocked: true
 products:
   - name: "Lemonade"
@@ -49,15 +49,16 @@ perks:
 automations:
   - name: "Lemonade Machine"
     kind: !Build 0
-    timer:
-      duration:
-        secs: 1
-        nanos: 0
-      elapsed:
-        secs: 0
-        nanos: 0
+    timer: 1
     condition:
       - !Product [0, 100]
     buy_price:
       - !Material [0, 10]
+  - name: "Lemon fetch-boy"
+    kind: !Buy 1
+    timer: 1
+    condition:
+      - !Product [0, 200]
+    buy_price:
+      - !Money 1000.0
       

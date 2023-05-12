@@ -100,7 +100,10 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                 for i in 0..state.materials().len() {
                     if state.materials()[i].active() {
                         if ui
-                            .button(&format!("Buy {}s", state.materials()[i].name().to_lowercase()))
+                            .button(&format!(
+                                "Buy {}s",
+                                state.materials()[i].name().to_lowercase()
+                            ))
                             .clicked()
                         {
                             state.buy_material(i, 1);
@@ -112,26 +115,46 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                     if state.products()[i].active() {
                         ui.horizontal(|ui| {
                             if ui
-                                .button(format!("Build {}", state.products()[i].name().to_lowercase()))
+                                .button(format!(
+                                    "Build {}",
+                                    state.products()[i].name().to_lowercase()
+                                ))
                                 .clicked()
                             {
                                 state.construct_product(i);
                             }
                             if ui
                                 .button(&format!(
-                                    "+ {}'s price",
+                                    "+0.01 {}'s price",
                                     state.products()[i].name().to_lowercase()
                                 ))
                                 .clicked()
                             {
-                                state.inc_price(i);
+                                state.inc_price(i, 0.01);
                             }
 
                             if ui
-                                .button(&format!("- {:?}'s price", state.products()[i].name()))
+                                .button(&format!("-0.01 {:?}'s price", state.products()[i].name()))
                                 .clicked()
                             {
-                                state.dec_price(i);
+                                state.dec_price(i, 0.01);
+                            }
+
+                            if ui
+                                .button(&format!(
+                                    "+0.10 {}'s price",
+                                    state.products()[i].name().to_lowercase()
+                                ))
+                                .clicked()
+                            {
+                                state.inc_price(i, 0.1);
+                            }
+
+                            if ui
+                                .button(&format!("-0.10 {:?}'s price", state.products()[i].name()))
+                                .clicked()
+                            {
+                                state.dec_price(i, 0.1);
                             }
                         });
                     }

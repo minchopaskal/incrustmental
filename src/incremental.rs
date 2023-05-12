@@ -1,14 +1,21 @@
-use std::time::Duration;
-use rand::Rng;
 use derive_getters::Getters;
+use rand::Rng;
 use serde::Deserialize;
+use std::time::Duration;
 
 use crate::prelude::AutomationId;
-use crate::types::{Count, PerkId, Price, ProductId, ProductMaterialId};
 use crate::serde::ProductMaterialDef;
+use crate::types::{Count, PerkId, Price, ProductId, ProductMaterialId};
 
 use crate::timer::Timer;
 
+// `Quantity` represents a quantity of some asset
+// be it Money, Material or Product.
+//
+// Quantity::Money represents amonunt of money
+// Quantity::Material represent amount of a material
+// Quantity::Product represent amount of a product. Depending on the context
+// this may be used as the amount produced, current amount or amount sold.
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub enum Quantity {
     Money(Price),
@@ -17,10 +24,16 @@ pub enum Quantity {
 }
 
 impl Quantity {
+    // Checks weather to Quantities represent the same thing.
+    //
+    // example: Quantity::Money(10.).similar(Quantity::Money(5.)) == true, but
+    // Quantity::Money(10.).similar(Quantity::Material(0, 5)) == false
     pub fn similar(&self, other: &Quantity) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
 
+    // Performs an operation on the internal amounts only if the two quantities
+    // represent the same thing.
     pub fn op(&self, other: &Quantity, op: fn(f64, f64) -> f64) -> Quantity {
         match (self, other) {
             (Quantity::Money(x), Quantity::Money(y)) => Quantity::Money(op(*x, *y)),
@@ -42,6 +55,7 @@ impl Quantity {
         }
     }
 
+    // Return the quantity stored by the instance
     pub fn quantity(&self) -> f64 {
         match &self {
             Quantity::Money(x) => *x,
@@ -50,6 +64,7 @@ impl Quantity {
         }
     }
 
+    // Return the string representation of the quantity
     pub fn as_str(&self, state: &State) -> String {
         match &self {
             Quantity::Money(x) => format!("${:.2}", *x),
@@ -69,14 +84,43 @@ impl Quantity {
     }
 }
 
+// Represents a relation kind
+// Let us have two objects A, B and a [`Relation`] with direction A -> B, then:
+//
+// See [`Realtion`]
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum RelationKind {
+    #[doc = "B is consumed when A is constructed"]
     Consumes,
+
+    #[doc = "B needs to be present for A to be constructed"]
     ManifacturedBy,
+
+    #[doc = "B needs to be present for A to be sold"]
     SoldBy,
+
+    #[doc = "B needs to be present when A is constructed."]
+    #[doc = "The difference with [`ManifacturedBy`] is"]
+    #[doc = "that `Needs` doesn't affect the construction count"]
     Needs,
 }
 
+// Represents a relation between two objects.
+// Used for specifying the dependancies of a product
+// when it is build.
+//
+// # Example
+// Product Car is manifactured by 1 product material Factory,
+// consumes 100 product material Metal, is sold by 1 Dealership
+// and needs at least one CarSchema to be present. In this case
+// one would define dependancies of a product like this:
+// ```
+// [
+//  Relation::new(RelationKind::ManifacturedBy, Quantity::Material(FACTORY, 1)),
+//  Relation::new(RelationKind::Consumes, Quantity::Material(METAL, 100)),
+//  Relation::new(RelationKind::Needs, Quantity::Material(CAR_SCHEMA, 1)),
+//  Relation::new(RelationKind::SoldBy, Quantity::Material(DEALERSHIP, 1)),
+// ]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct Relation {
     kind: RelationKind,
@@ -141,13 +185,14 @@ impl Relation {
 
 // Materials that can be bought.
 // Each material has a base price and a growth factor that
-// determine the current price of the material.
-// Materials used during the manifacturing or selling of a product.
+// determine the current price of the material based on the amount
+// of it already bought.
+// Materials are used during the manifacturing or selling of a product.
 // F.e ProductMaterial may be a Shop which sells certain product.
 // In that case the product will have a dependancy to that material
 // with RelationKind::SoldBy.
 #[derive(Deserialize)]
-#[serde(from="ProductMaterialDef")]
+#[serde(from = "ProductMaterialDef")]
 pub struct ProductMaterial {
     name: String,
     base_price: Price,
@@ -163,7 +208,7 @@ impl ProductMaterial {
         kind: String,
         base_price: Price,
         growth: f64,
-        unlocked: bool
+        unlocked: bool,
     ) -> Self {
         Self {
             bought: init_bought,
@@ -205,6 +250,15 @@ impl ProductMaterial {
     }
 }
 
+// Defines how a perk is applied.
+//
+// # Example
+// Say a perk reduces the need for a certain material
+// during a production of a product by a factor of 2.
+// Such perk would be defined as:
+// ```
+// Perk::new(..., perk: (Quantity::Material(<the material id>, 2), PerkKind::Divide))
+// ```
 #[derive(PartialEq, Clone, Copy, Deserialize)]
 pub enum PerkKind {
     Add,
@@ -213,13 +267,19 @@ pub enum PerkKind {
     Divide,
 }
 
+// Defines a perk that may be applied during the production of a product.
 #[derive(Deserialize)]
 pub struct Perk {
     name: String,
     #[serde(alias = "desc")]
     description: String,
+
+    #[doc = "List of condition of unlocking the perk to the user"]
     condition: Vec<Quantity>, // Always a Needs relation
+
+    #[doc = "List of quantities that will be consumed after buying the perk"]
     buy_price: Vec<Quantity>, // Always a Consume relation
+
     perk: (Quantity, PerkKind),
 
     #[serde(skip)]
@@ -293,9 +353,18 @@ pub struct Product {
     sold: Count,
 
     name: String,
+
+    #[doc = "Optional price at which the product is sold. If None it will not be sold, and the user may specify it as a material for other products."]
     price: Option<Price>,
+
+    #[doc = "List of Relations to other quantites that are taken into consideration during construction of the product. See [`RelationKind`]"]
     dependencies: Vec<Relation>,
+
+    #[doc = "List of perk indices that may be applied to the product"]
     perks: Vec<PerkId>,
+
+    #[doc = "List of product indices that are unlocked when the specified [Count] of this product is sold."]
+    #[doc = "Note that when a product is unlocked it unlocks all the materials and other products it has as dependancies."]
     unlocks: Vec<(ProductId, Count)>,
 
     #[serde(alias = "unlocked")]
@@ -309,7 +378,7 @@ impl Product {
         dependencies: Vec<Relation>,
         perks: Vec<PerkId>,
         unlocks: Vec<(ProductId, Count)>,
-        unlocked: bool
+        unlocked: bool,
     ) -> Self {
         Self {
             name,
@@ -333,6 +402,10 @@ impl Product {
 
     pub fn sold(&self) -> Count {
         self.sold
+    }
+
+    pub fn produced(&self) -> Count {
+        self.count + self.sold
     }
 
     pub fn interest(&self) -> f64 {
@@ -399,7 +472,7 @@ impl Product {
             if has_prev {
                 recipe.push_str("; ");
             }
-            
+
             recipe.push_str("Manifactured by: ");
             for m in manifactured_by.iter() {
                 recipe.push_str(&m.as_str(state));
@@ -447,12 +520,21 @@ pub enum AutomationKind {
     Build(ProductId),
 }
 
+// Automates either construction of a product
+// or buying of a material, depending on `kind`
+// If `timer`
 #[derive(Deserialize)]
 pub struct Automation {
     name: String,
     kind: AutomationKind,
+
+    #[doc = "If not None runs the automation only at the specified time intervals."]
     timer: Option<Timer>,
+
+    #[doc = "List of quantities needed to be present of an Automation to be unlocked"]
     condition: Vec<Quantity>,
+
+    #[doc = "List of quantities that will be consumed when the automation is bought"]
     buy_price: Vec<Quantity>,
 
     #[serde(skip)]
@@ -460,7 +542,7 @@ pub struct Automation {
 
     #[serde(skip)]
     unlocked: bool,
-    
+
     #[serde(skip)]
     active: bool,
 }
@@ -503,14 +585,14 @@ impl Automation {
                     state.materials[id].name.to_lowercase(),
                     time
                 )
-            },
+            }
             AutomationKind::Build(id) => {
                 format!(
                     "Builds {}s {}!",
                     state.products[id].name.to_lowercase(),
                     time
                 )
-            },
+            }
         }
     }
 
@@ -551,11 +633,15 @@ impl Automation {
     }
 }
 
+// Represents a badge that is won on certain condition.
+// May be used as another story-telling device.
 #[derive(Deserialize)]
 pub struct Badge {
     name: String,
     #[serde(alias = "desc")]
     description: String, // We let the designer write his custom description
+
+    #[doc = "Condition on which the badge is unlocked"]
     condition: Vec<Quantity>,
 
     #[serde(skip)]
@@ -563,11 +649,7 @@ pub struct Badge {
 }
 
 impl Badge {
-    pub fn new(
-        name: String,
-        description: String,
-        condition: Vec<Quantity>,
-    ) -> Self {
+    pub fn new(name: String, description: String, condition: Vec<Quantity>) -> Self {
         Self {
             name,
             description,
@@ -597,6 +679,13 @@ impl Badge {
     }
 }
 
+// Defines the objectives that the player must achive in order to win the game
+//
+// # Example
+// The player will win when he has 1 million amount of money:
+// ```
+// Objective::new(vec![Quantity::Money(1000000.)])
+// ```
 #[derive(Default, Deserialize)]
 pub struct Objective(Vec<Quantity>);
 
@@ -610,12 +699,16 @@ impl Objective {
     }
 }
 
+// Defines the rules of the game - the objectives,
+// all the product materials, products, badges, perks and automations.
+// All the types that have *Id name(f.e PerkId) are indexing into
+// the arrays of this object.
 #[derive(Default, Getters, Deserialize)]
 pub struct State {
     #[getter(skip)]
     #[serde(alias = "init_money")]
     money: f64,
-    
+
     objective: Objective,
     materials: Vec<ProductMaterial>,
     products: Vec<Product>,
@@ -681,9 +774,9 @@ impl State {
 
         for dep in self.products[id].dependencies().iter() {
             match dep.quantity {
-                Quantity::Money(_) => unreachable!(),
                 Quantity::Material(id, _) => self.materials[id].activate(),
                 Quantity::Product(id, _) => activate_recursive.push(id),
+                _ => {}
             }
         }
 
@@ -858,9 +951,7 @@ impl State {
                         false
                     }
                 }
-                None => {
-                    true
-                }
+                None => true,
             };
 
             if !run {
@@ -971,15 +1062,15 @@ impl State {
         self.automations[id].paused = !self.automations[id].paused;
     }
 
-    pub fn inc_price(&mut self, id: ProductId) {
+    pub fn inc_price(&mut self, id: ProductId, delta: Price) {
         if let Some(price) = self.products[id].price {
-            self.products[id].price = Some(price + 0.01);
+            self.products[id].price = Some(price + delta);
         }
     }
 
-    pub fn dec_price(&mut self, id: ProductId) {
+    pub fn dec_price(&mut self, id: ProductId, delta: Price) {
         if let Some(price) = self.products[id].price {
-            self.products[id].price = Some((price - 0.01).max(0.01));
+            self.products[id].price = Some((price - delta).max(0.0));
         }
     }
 

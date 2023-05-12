@@ -1,14 +1,16 @@
+use std::time::Duration;
+
 use serde::Deserialize;
 
-use crate::prelude::{ProductMaterial, Count, Price};
+use crate::prelude::{Count, Price, ProductMaterial, Timer};
 
 #[derive(Deserialize)]
 pub(crate) struct ProductMaterialDef {
-    pub(crate) init_bought: Count,
-    pub(crate) kind: String,
-    pub(crate) base_price: Price,
-    pub(crate) growth: f64,
-    pub(crate) unlocked: bool
+    init_bought: Count,
+    kind: String,
+    base_price: Price,
+    growth: f64,
+    unlocked: bool,
 }
 
 impl From<ProductMaterialDef> for ProductMaterial {
@@ -18,7 +20,16 @@ impl From<ProductMaterialDef> for ProductMaterial {
             product.kind,
             product.base_price,
             product.growth,
-            product.unlocked
+            product.unlocked,
         )
+    }
+}
+
+#[derive(Deserialize)]
+pub(crate) struct TimerDef(u64);
+
+impl From<TimerDef> for Timer {
+    fn from(timer_def: TimerDef) -> Self {
+        Self::new(Duration::from_secs(timer_def.0))
     }
 }
