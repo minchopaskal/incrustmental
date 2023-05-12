@@ -1,0 +1,45 @@
+{
+    "money":0.0,
+    "objective": [
+        {"Money":10000.0},
+        {"Product":[0,500,null]},
+        {"Product":[0,200,"Sold"]}
+    ],
+    "materials": [
+        { "init_bought": 4, "kind": "Shop", "base_price": 1.0,"growth": 1.07, "unlocked": true },
+        { "init_bought": 100, "kind": "Lemon", "base_price": 0.1, "growth": 1.02, "unlocked":true }
+    ],
+    "products": [
+        {
+            "name": "Lemonade",
+            "price":1.0,
+            "dependencies": [
+                { "kind": "ManufacturedBy", "quantity": {"Material":[0,1]} },
+                { "kind": "Consumes", "quantity": {"Material":[1,2]} },
+                { "kind": "SoldBy", "quantity": {"Material":[0,1]}}
+            ],
+            "perks":[0],
+            "unlocks":[],
+            "active":true
+        }
+    ],
+    "badges": [
+        { "name": "King of the lemonade trade", "description": "Sold 10 lemonades", "condition": [{"Product":[0,10,"Sold"]}] },
+        {"name": "Lemonade emperor", "description": "Sold 200 lemonades", "condition":[{"Product":[0,200,"Sold"]}] }
+    ],
+    "perks": [
+        {
+            "name": "Lemonficcient",
+            "description": "Each lemon produces 10 times more lemonade",
+            "condition":[ {"Product":[0,100,"Sold"]} ],
+            "buy_price":[ {"Money":10.0}, {"Material":[1,100]} ],
+            "perk": [
+                { "Product": [0,10] }, "Multiply"
+            ]
+        }
+    ],
+    "automations": [
+        { "name": "Lemonade Machine", "kind": {"Build":0}, "timer": 1, "condition": [ {"Product":[0,100,"Sold"]} ], "buy_price": [{"Material":[0,10]}] },
+        { "name": "Lemon fetch-boy", "kind": {"Buy":1}, "timer": 1, "condition": [ {"Product":[0,200,"Sold"]}], "buy_price": [{"Money":1000.0}] }
+    ] 
+}

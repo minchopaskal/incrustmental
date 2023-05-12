@@ -1,11 +1,12 @@
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::serde::TimerDef;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(from = "TimerDef")]
+#[serde(into = "TimerDef")]
 pub struct Timer {
     duration: Duration,
     elapsed: Duration,

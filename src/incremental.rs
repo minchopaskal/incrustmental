@@ -1,6 +1,6 @@
 use derive_getters::Getters;
 use rand::Rng;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::prelude::AutomationId;
@@ -12,15 +12,19 @@ use crate::timer::Timer;
 // `Quantity` represents a quantity of some asset
 // be it Money, Material or Product.
 //
-// Quantity::Money represents amonunt of money
+// Quantity::Money represents amount of money
 // Quantity::Material represent amount of a material
 // Quantity::Product represent amount of a product. Depending on the context
 // this may be used as the amount produced, current amount or amount sold.
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum Quantity {
     Money(Price),
     Material(ProductMaterialId, Count),
-    Product(ProductId, Count),
+    Product(
+        ProductId,
+        Count,
+        #[serde(default)] Option<ProductConditionKind>,
+    ),
 }
 
 impl Quantity {
@@ -44,9 +48,9 @@ impl Quantity {
                     *self
                 }
             }
-            (Quantity::Product(x, y), Quantity::Product(z, w)) => {
+            (Quantity::Product(x, y, cond), Quantity::Product(z, w, _)) => {
                 if x == z {
-                    Quantity::Product(*x, op(*y as f64, *w as f64) as Count)
+                    Quantity::Product(*x, op(*y as f64, *w as f64) as Count, *cond)
                 } else {
                     *self
                 }
@@ -60,7 +64,7 @@ impl Quantity {
         match &self {
             Quantity::Money(x) => *x,
             Quantity::Material(_, x) => *x as f64,
-            Quantity::Product(_, x) => *x as f64,
+            Quantity::Product(_, x, _) => *x as f64,
         }
     }
 
@@ -74,7 +78,7 @@ impl Quantity {
                 state.materials[*id].name.to_lowercase(),
                 if *cnt > 1 { "s" } else { "" }
             ),
-            Quantity::Product(id, cnt) => format!(
+            Quantity::Product(id, cnt, _) => format!(
                 "{} {}{}",
                 *cnt,
                 state.products[*id].name.to_lowercase(),
@@ -84,44 +88,53 @@ impl Quantity {
     }
 }
 
+#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
+pub enum ProductConditionKind {
+    Count,
+    Sold,
+    Produced,
+}
+
+pub type Condition = Quantity;
+
 // Represents a relation kind
 // Let us have two objects A, B and a [`Relation`] with direction A -> B, then:
 //
-// See [`Realtion`]
-#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
+// See [`Relation`]
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum RelationKind {
     #[doc = "B is consumed when A is constructed"]
     Consumes,
 
     #[doc = "B needs to be present for A to be constructed"]
-    ManifacturedBy,
+    ManufacturedBy,
 
     #[doc = "B needs to be present for A to be sold"]
     SoldBy,
 
     #[doc = "B needs to be present when A is constructed."]
-    #[doc = "The difference with [`ManifacturedBy`] is"]
+    #[doc = "The difference with [`ManufacturedBy`] is"]
     #[doc = "that `Needs` doesn't affect the construction count"]
     Needs,
 }
 
 // Represents a relation between two objects.
-// Used for specifying the dependancies of a product
+// Used for specifying the dependencies of a product
 // when it is build.
 //
 // # Example
-// Product Car is manifactured by 1 product material Factory,
+// Product Car is manufactured by 1 product material Factory,
 // consumes 100 product material Metal, is sold by 1 Dealership
 // and needs at least one CarSchema to be present. In this case
-// one would define dependancies of a product like this:
+// one would define dependencies of a product like this:
 // ```
 // [
-//  Relation::new(RelationKind::ManifacturedBy, Quantity::Material(FACTORY, 1)),
+//  Relation::new(RelationKind::ManufacturedBy, Quantity::Material(FACTORY, 1)),
 //  Relation::new(RelationKind::Consumes, Quantity::Material(METAL, 100)),
 //  Relation::new(RelationKind::Needs, Quantity::Material(CAR_SCHEMA, 1)),
 //  Relation::new(RelationKind::SoldBy, Quantity::Material(DEALERSHIP, 1)),
 // ]
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct Relation {
     kind: RelationKind,
     quantity: Quantity,
@@ -187,19 +200,20 @@ impl Relation {
 // Each material has a base price and a growth factor that
 // determine the current price of the material based on the amount
 // of it already bought.
-// Materials are used during the manifacturing or selling of a product.
+// Materials are used during the manufacturing or selling of a product.
 // F.e ProductMaterial may be a Shop which sells certain product.
-// In that case the product will have a dependancy to that material
+// In that case the product will have a dependency to that material
 // with RelationKind::SoldBy.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(from = "ProductMaterialDef")]
+#[serde(into = "ProductMaterialDef")]
 pub struct ProductMaterial {
     name: String,
-    base_price: Price,
+    pub(crate) base_price: Price,
     bought: Count,
     count: Count,
-    growth: f64,
-    active: bool, // wether or not the product unlocked for the player
+    pub(crate) growth: f64,
+    pub(crate) active: bool, // wether or not the product unlocked for the player
 }
 
 impl ProductMaterial {
@@ -259,23 +273,23 @@ impl ProductMaterial {
 // ```
 // Perk::new(..., perk: (Quantity::Material(<the material id>, 2), PerkKind::Divide))
 // ```
-#[derive(PartialEq, Clone, Copy, Deserialize)]
+#[derive(PartialEq, Clone, Copy, Deserialize, Serialize)]
 pub enum PerkKind {
     Add,
-    Substract,
+    Subtract,
     Multiply,
     Divide,
 }
 
 // Defines a perk that may be applied during the production of a product.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Perk {
     name: String,
     #[serde(alias = "desc")]
     description: String,
 
     #[doc = "List of condition of unlocking the perk to the user"]
-    condition: Vec<Quantity>, // Always a Needs relation
+    condition: Vec<Condition>, // Always a Needs relation
 
     #[doc = "List of quantities that will be consumed after buying the perk"]
     buy_price: Vec<Quantity>, // Always a Consume relation
@@ -293,7 +307,7 @@ impl Perk {
     pub fn new(
         name: String,
         description: String,
-        condition: Vec<Quantity>,
+        condition: Vec<Condition>,
         buy_price: Vec<Quantity>,
         perk: (Quantity, PerkKind),
     ) -> Self {
@@ -316,7 +330,7 @@ impl Perk {
         &self.description
     }
 
-    pub fn condition(&self) -> &Vec<Quantity> {
+    pub fn condition(&self) -> &Vec<Condition> {
         &self.condition
     }
 
@@ -345,7 +359,7 @@ impl Perk {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Product {
     #[serde(skip)]
     count: Count,
@@ -357,14 +371,14 @@ pub struct Product {
     #[doc = "Optional price at which the product is sold. If None it will not be sold, and the user may specify it as a material for other products."]
     price: Option<Price>,
 
-    #[doc = "List of Relations to other quantites that are taken into consideration during construction of the product. See [`RelationKind`]"]
+    #[doc = "List of Relations to other quantities that are taken into consideration during construction of the product. See [`RelationKind`]"]
     dependencies: Vec<Relation>,
 
     #[doc = "List of perk indices that may be applied to the product"]
     perks: Vec<PerkId>,
 
     #[doc = "List of product indices that are unlocked when the specified [Count] of this product is sold."]
-    #[doc = "Note that when a product is unlocked it unlocks all the materials and other products it has as dependancies."]
+    #[doc = "Note that when a product is unlocked it unlocks all the materials and other products it has as dependencies."]
     unlocks: Vec<(ProductId, Count)>,
 
     #[serde(alias = "unlocked")]
@@ -412,7 +426,7 @@ impl Product {
         match self.price {
             None => 0.0,
             Some(price) => {
-                assert!(price > 0.);
+                assert!(price >= 0.);
                 let init = if price < 1.0 { 0.5 } else { 0.0 };
 
                 let price = if price < 1.0 {
@@ -433,12 +447,12 @@ impl Product {
     pub fn recipe(&self, state: &State) -> String {
         let mut needs = Vec::new();
         let mut consumes = Vec::new();
-        let mut manifactured_by = Vec::new();
+        let mut manufactured_by = Vec::new();
 
         for rel in self.dependencies.iter() {
             match rel.kind {
                 RelationKind::Consumes => consumes.push(rel.quantity()),
-                RelationKind::ManifacturedBy => manifactured_by.push(rel.quantity()),
+                RelationKind::ManufacturedBy => manufactured_by.push(rel.quantity()),
                 RelationKind::Needs => needs.push(rel.quantity()),
                 _ => {}
             }
@@ -468,13 +482,13 @@ impl Product {
             has_prev = true;
         }
 
-        if !manifactured_by.is_empty() {
+        if !manufactured_by.is_empty() {
             if has_prev {
                 recipe.push_str("; ");
             }
 
-            recipe.push_str("Manifactured by: ");
-            for m in manifactured_by.iter() {
+            recipe.push_str("Manufactured by: ");
+            for m in manufactured_by.iter() {
                 recipe.push_str(&m.as_str(state));
             }
         }
@@ -514,7 +528,7 @@ impl Product {
     }
 }
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum AutomationKind {
     Buy(ProductMaterialId),
     Build(ProductId),
@@ -523,7 +537,7 @@ pub enum AutomationKind {
 // Automates either construction of a product
 // or buying of a material, depending on `kind`
 // If `timer`
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Automation {
     name: String,
     kind: AutomationKind,
@@ -532,7 +546,7 @@ pub struct Automation {
     timer: Option<Timer>,
 
     #[doc = "List of quantities needed to be present of an Automation to be unlocked"]
-    condition: Vec<Quantity>,
+    condition: Vec<Condition>,
 
     #[doc = "List of quantities that will be consumed when the automation is bought"]
     buy_price: Vec<Quantity>,
@@ -552,7 +566,7 @@ impl Automation {
         name: String,
         kind: AutomationKind,
         timer: Option<Timer>,
-        condition: Vec<Quantity>,
+        condition: Vec<Condition>,
         buy_price: Vec<Quantity>,
     ) -> Self {
         Self {
@@ -620,7 +634,7 @@ impl Automation {
         self.timer.as_mut()
     }
 
-    pub(crate) fn condition(&self) -> &Vec<Quantity> {
+    pub(crate) fn condition(&self) -> &Vec<Condition> {
         &self.condition
     }
 
@@ -635,21 +649,21 @@ impl Automation {
 
 // Represents a badge that is won on certain condition.
 // May be used as another story-telling device.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Badge {
     name: String,
     #[serde(alias = "desc")]
     description: String, // We let the designer write his custom description
 
     #[doc = "Condition on which the badge is unlocked"]
-    condition: Vec<Quantity>,
+    condition: Vec<Condition>,
 
     #[serde(skip)]
     unlocked: bool,
 }
 
 impl Badge {
-    pub fn new(name: String, description: String, condition: Vec<Quantity>) -> Self {
+    pub fn new(name: String, description: String, condition: Vec<Condition>) -> Self {
         Self {
             name,
             description,
@@ -670,7 +684,7 @@ impl Badge {
         self.unlocked
     }
 
-    pub(crate) fn condition(&self) -> &Vec<Quantity> {
+    pub(crate) fn condition(&self) -> &Vec<Condition> {
         &self.condition
     }
 
@@ -679,22 +693,22 @@ impl Badge {
     }
 }
 
-// Defines the objectives that the player must achive in order to win the game
+// Defines the objectives that the player must achieve in order to win the game
 //
 // # Example
 // The player will win when he has 1 million amount of money:
 // ```
 // Objective::new(vec![Quantity::Money(1000000.)])
 // ```
-#[derive(Default, Deserialize)]
-pub struct Objective(Vec<Quantity>);
+#[derive(Default, Deserialize, Serialize)]
+pub struct Objective(Vec<Condition>);
 
 impl Objective {
-    pub fn new(conds: Vec<Quantity>) -> Self {
+    pub fn new(conds: Vec<Condition>) -> Self {
         Self(conds)
     }
 
-    pub fn win_condition(&self) -> &[Quantity] {
+    pub fn win_condition(&self) -> &[Condition] {
         &self.0
     }
 }
@@ -703,7 +717,7 @@ impl Objective {
 // all the product materials, products, badges, perks and automations.
 // All the types that have *Id name(f.e PerkId) are indexing into
 // the arrays of this object.
-#[derive(Default, Getters, Deserialize)]
+#[derive(Default, Getters, Deserialize, Serialize)]
 pub struct State {
     #[getter(skip)]
     #[serde(alias = "init_money")]
@@ -748,16 +762,26 @@ impl State {
         match q {
             Quantity::Money(money) => (self.money / *money).floor() as Count,
             Quantity::Material(id, cnt) => self.materials[*id].count / *cnt,
-            Quantity::Product(id, cnt) => self.products[*id].sold / *cnt,
+            Quantity::Product(id, cnt, _) => self.products[*id].count() / *cnt,
         }
     }
 
     #[inline]
-    fn check_condition(&self, conds: &Quantity) -> bool {
-        self.quantity_present_count(conds) > 0
+    fn check_condition(&self, cond: &Quantity) -> bool {
+        match cond {
+            Quantity::Money(money) => self.money >= *money,
+            Quantity::Material(id, cnt) => self.materials[*id].count >= *cnt,
+            Quantity::Product(id, cnt, product_cond) => {
+                match product_cond.unwrap_or(ProductConditionKind::Produced) {
+                    ProductConditionKind::Count => self.products[*id].count() >= *cnt,
+                    ProductConditionKind::Sold => self.products[*id].sold() >= *cnt,
+                    ProductConditionKind::Produced => self.products[*id].produced() >= *cnt,
+                }
+            }
+        }
     }
 
-    fn check_conditions(&self, conds: &[Quantity]) -> bool {
+    fn check_conditions(&self, conds: &[Condition]) -> bool {
         for cond in conds.iter() {
             if !self.check_condition(cond) {
                 return false;
@@ -775,7 +799,7 @@ impl State {
         for dep in self.products[id].dependencies().iter() {
             match dep.quantity {
                 Quantity::Material(id, _) => self.materials[id].activate(),
-                Quantity::Product(id, _) => activate_recursive.push(id),
+                Quantity::Product(id, _, _) => activate_recursive.push(id),
                 _ => {}
             }
         }
@@ -796,7 +820,7 @@ impl State {
 
             match &perk.1 {
                 PerkKind::Add => new_cond = new_cond.add(perk.0),
-                PerkKind::Substract => new_cond = new_cond.sub(perk.0),
+                PerkKind::Subtract => new_cond = new_cond.sub(perk.0),
                 PerkKind::Multiply => new_cond = new_cond.multiply(perk.0),
                 PerkKind::Divide => new_cond = new_cond.divide(perk.0),
             }
@@ -806,10 +830,10 @@ impl State {
     }
 
     fn apply_product_perks(&self, base_build_count: Count, id: ProductId) -> Count {
-        let cond = Relation::needs(Quantity::Product(id, base_build_count));
+        let cond = Relation::needs(Quantity::Product(id, base_build_count, None));
         let cond = self.apply_perk(id, cond);
 
-        if let Quantity::Product(product_id, cnt) = cond.quantity() {
+        if let Quantity::Product(product_id, cnt, _) = cond.quantity() {
             assert!(*product_id == id);
 
             *cnt
@@ -835,7 +859,7 @@ impl State {
                     max_buy_count = max_buy_count.min(cnt);
                     prices.push(*cond.quantity());
                 }
-                RelationKind::ManifacturedBy => {
+                RelationKind::ManufacturedBy => {
                     max_build_count = max_build_count.min(cnt);
                 }
                 _ => {}
@@ -855,7 +879,7 @@ impl State {
                     assert!(self.materials[id].count >= build_count * cnt);
                     self.materials[id].count -= build_count * cnt;
                 }
-                Quantity::Product(id, cnt) => {
+                Quantity::Product(id, cnt, _) => {
                     assert!(self.products[id].count >= build_count * cnt);
                     self.products[id].count -= build_count * cnt;
                 }
@@ -1012,7 +1036,17 @@ impl State {
         assert!(self.perks[id].unlocked);
         assert!(!self.perks[id].active);
 
-        if !self.check_conditions(self.perks[id].price()) {
+        let v: Vec<_> = self.perks[id]
+            .price()
+            .iter()
+            .map(|p| match *p {
+                Quantity::Product(id, cnt, _) => {
+                    Quantity::Product(id, cnt, Some(ProductConditionKind::Count))
+                }
+                _ => *p,
+            })
+            .collect();
+        if !self.check_conditions(&v) {
             return;
         }
 
@@ -1024,7 +1058,7 @@ impl State {
                 Quantity::Material(id, cnt) => {
                     self.materials[*id].count -= cnt;
                 }
-                Quantity::Product(id, cnt) => {
+                Quantity::Product(id, cnt, _) => {
                     self.products[*id].count -= cnt;
                 }
             }
@@ -1037,7 +1071,17 @@ impl State {
         assert!(self.automations[id].unlocked);
         assert!(!self.automations[id].active);
 
-        if !self.check_conditions(self.automations[id].price()) {
+        let v: Vec<_> = self.automations[id]
+            .price()
+            .iter()
+            .map(|p| match *p {
+                Quantity::Product(id, cnt, _) => {
+                    Quantity::Product(id, cnt, Some(ProductConditionKind::Count))
+                }
+                _ => *p,
+            })
+            .collect();
+        if !self.check_conditions(&v) {
             return;
         }
 
@@ -1049,7 +1093,7 @@ impl State {
                 Quantity::Material(id, cnt) => {
                     self.materials[*id].count -= cnt;
                 }
-                Quantity::Product(id, cnt) => {
+                Quantity::Product(id, cnt, _) => {
                     self.products[*id].count -= cnt;
                 }
             }
@@ -1069,9 +1113,12 @@ impl State {
     }
 
     pub fn dec_price(&mut self, id: ProductId, delta: Price) {
-        if let Some(price) = self.products[id].price {
-            self.products[id].price = Some((price - delta).max(0.0));
+        if self.products[id].price.is_none() {
+            return;
         }
+
+        let price = self.products[id].price.unwrap();
+        self.products[id].price = Some((price - delta).max(0.0));
     }
 
     pub fn money(&self) -> f64 {
@@ -1080,5 +1127,29 @@ impl State {
 
     pub fn win(&self) -> bool {
         self.win
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Product, State};
+
+    #[test]
+    fn dec_price() {
+        let mut s = State {
+            products: vec![Product::new(
+                "test".to_string(),
+                Some(0.0),
+                vec![],
+                vec![],
+                vec![],
+                true,
+            )],
+            ..Default::default()
+        };
+        s.dec_price(0, -1.);
+        assert!(s.products[0].price().unwrap() >= 0.0);
+        s.dec_price(0, -1.);
+        assert!(s.products[0].price().unwrap() >= 0.0);
     }
 }

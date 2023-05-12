@@ -2,7 +2,7 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy_egui::egui::Id;
 use bevy_egui::{egui, EguiContexts};
-use incrustmental::prelude::Quantity;
+use incrustmental::prelude::{ProductConditionKind, Quantity};
 
 use crate::resources::StateRes;
 
@@ -164,10 +164,10 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
 
     egui::SidePanel::left(Id::new("left_panel")).show(egui_ctx, |ui| {
         ui.label("Objectives");
-        for obj in state.objective().win_condition().iter() {
+        for obj in state.objective().win_condition() {
             match obj {
                 Quantity::Money(p) => {
-                    ui.label(&format!("${:.2}", p));
+                    ui.label(&format!("Have ${:.2}", p));
                 }
                 Quantity::Material(id, cnt) => {
                     ui.label(&format!(
@@ -177,9 +177,15 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                         if *cnt > 1 { "s" } else { "" }
                     ));
                 }
-                Quantity::Product(id, cnt) => {
+                Quantity::Product(id, cnt, p_cond) => {
+                    let obj_kind = match p_cond.unwrap_or(ProductConditionKind::Produced) {
+                        ProductConditionKind::Count => "Have available",
+                        ProductConditionKind::Sold => "Sell",
+                        ProductConditionKind::Produced => "Produce",
+                    };
                     ui.label(&format!(
-                        "{} {}{}",
+                        "{} {} {}{}",
+                        obj_kind,
                         cnt,
                         state.products()[*id].name(),
                         if *cnt > 1 { "s" } else { "" }
@@ -235,7 +241,7 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                                 if *cnt > 1 { "s" } else { "" }
                             ));
                         }
-                        Quantity::Product(id, cnt) => {
+                        Quantity::Product(id, cnt, _) => {
                             ui.label(&format!(
                                 "{} {}{}",
                                 cnt,
@@ -287,7 +293,7 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                                     if *cnt > 1 { "s" } else { "" }
                                 ));
                             }
-                            Quantity::Product(id, cnt) => {
+                            Quantity::Product(id, cnt, _) => {
                                 ui.label(&format!(
                                     "{} {}{}",
                                     cnt,

@@ -1,64 +1,110 @@
+# In game state is defined by the following fields:
+# money: initial money, floating number
+# objective: sequence of Quantities:
+#   - !Money <float>,
+#   - !Material [<id>, <integer count>]
+#   - !Product [<id>, <count>, optional <condition>] # see below
+# materials: sequence
+# products: sequence
+# badges: sequence
+# perks: sequence
+# automations: sequence
+
 money: 0.0
 objective: 
   - !Money 10000.0
-  - !Product [0, 200]
+  # first element is 0-based index that refers to the products listed under `products:`, second element is amount.
+  # Same goes for !Material
+  - !Product [0, 500]
+  
+  # Product conditions can have an optional third argument - ProductConditionKind specifying the type of condition applied to them.
+  # By default the condition is the number of products produced, but one can also specify Sold(number of products sold)
+  # and Count(number of products not sold yet), whereas Produced would specify the sum of all product sold and not sold.
+  # This argument is ignored in `buy_price` and `perk` fields where the engine always treats it as Count
+  - !Product [0, 200, Sold]
 materials:
-  - init_bought: 4
-    kind: "Shop"
-    base_price: 1.0
+  # material id 0
+  - init_bought: 4 # Initial amount of the material present. Sometimes it will be needed to bootstrap the game. integer
+    kind: "Shop" # Name for UI purposes
+    base_price: 1.0 # Base price, it will grow with the specified growth factor, floating number
+    # Growth factor. The price of the product is calculated by the following formula:
+    # base_price * growth ^ <materials_bought> / 10.0
+    # There is a plan for that formula to be custom defined.
     growth: 1.07
-    unlocked: true
+    unlocked: true # If true the material is unlocked at the beginning of the game, i.e it can be bought.
+
+  # material id 1
   - init_bought: 100
     kind: "Lemon"
     base_price: 0.10
     growth: 1.02
     unlocked: true
 products:
-  - name: "Lemonade"
+  # product id 0
+  - name: "Lemonade" # Name for UI
+    # Price of the product. floating number, optional
+    # It's NOT automatically calculated, so player should be able to change it.
+    # It's optional, so if we don't define it the product won't be sold. This is useful
+    # if we want to use it as a material for another product.
     price: 1.0
+    # A sequence of `Relation`s.
     dependencies:
-      - kind: ManifacturedBy
-        quantity: !Material [0, 1]
+      - kind: ManufacturedBy # RelationKind: SoldBy, Consumes, ManufacturedBy, Needs. See in code for ref.
+        quantity: !Material [0, 1] # A Quantity. If it is a Product the ProductConditionKind will be ignored
       - kind: Consumes
         quantity: !Material [1, 2]
       - kind: SoldBy
         quantity: !Material [0, 1]
-    perks: [0]
-    unlocks: []
+    perks: [0] # these are 0-based indices that refer to the perks listed under `perks:`
+    unlocks: [] # 0-based indices of products
     unlocked: true
 badges:
-  - name: "King of the lemonade trade"
-    desc: "Sold 10 lemonades"
+  # badge id 0
+  - name: "King of the lemonade trade" # UI name
+    desc: "Sold 10 lemonades" # UI description
+    # List of conditions that make the player win the badge. Same as in `objective:`
     condition:
-      - !Product [0, 10]
+      - !Product [0, 10, Sold]
+  # badge id 1
   - name: "Lemonade emperor"
     desc: "Sold 200 lemonades"
     condition:
-      - !Product [0, 200]
+      - !Product [0, 200, Sold]
 perks:
-  - name: "Lemonficcient"
-    desc: "Each lemon produces 10 times more lemonade"
-    condition:
-      - !Product [0, 100]
-    buy_price:
+  # perk id 0
+  - name: "Lemonficcient" # UI name
+    desc: "Each lemon produces 10 times more lemonade" # UI description
+    condition: # Same as above
+      - !Product [0, 100, Sold]
+    buy_price: # Same as `condition:`, but for !Product elements the ProductConditionKind is ignored
       - !Money 10.0
       - !Material [1, 100]
+    # This is where we define what the actual perk does.
+    # First element is Quantity and here are the rules:
+    # - if it is !Money, it will affect the dependency of Money a product needs in order to be built.
+    # - if it is !Material it will affect the count of the specified material a product needs in order to be built.
+    # - if it is !Product the id needs to match the id of the product this perk is attached to.
+    #   It will affect the count of the built products at a time. F.e if currently you are building a 10 of the product <N>
+    #   and the perk is [!Product [<N>, 10], Multiply] then you'll now build 100 of that product at a time (10 Multiply 10 = 100)
+    # Second element is the modifier. It can be: Add, Subtract, Multiply, Divide
     perk:
       - !Product [0, 10]
       - Multiply
 automations:
-  - name: "Lemonade Machine"
-    kind: !Build 0
-    timer: 1
-    condition:
-      - !Product [0, 100]
-    buy_price:
+  # automation, id 0
+  - name: "Lemonade Machine" # name for displaying in UI
+    kind: !Build 0 # Automation kind - either !Build <product_id> or !Buy <material_id>
+    timer: 1 # Duration in seconds, specifying an interval for running the automation. integer, optional
+    condition: # as above
+      - !Product [0, 100, Sold]
+    buy_price: # as above
       - !Material [0, 10]
+  # another automation, id 1
   - name: "Lemon fetch-boy"
     kind: !Buy 1
     timer: 1
     condition:
-      - !Product [0, 200]
+      - !Product [0, 200, Sold]
     buy_price:
       - !Money 1000.0
       
