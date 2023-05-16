@@ -25,6 +25,7 @@ objective:
 materials:
   # material id 0
   - init_bought: 4 # Initial amount of the material present. Sometimes it will be needed to bootstrap the game. integer
+    limit: ~ # We can set a limit capping the maximum amount of material we can have. optional, integer
     kind: "Shop" # Name for UI purposes
     base_price: 1.0 # Base price, it will grow with the specified growth factor, floating number
     # Growth factor. The price of the product is calculated by the following formula:
@@ -63,6 +64,7 @@ badges:
   - name: "King of the lemonade trade" # UI name
     desc: "Sold 10 lemonades" # UI description
     # List of conditions that make the player win the badge. Same as in `objective:`
+    # if The condition list is empty the badge is unlocked from the beginning
     condition:
       - !Product [0, 10, Sold]
   # badge id 1
@@ -76,7 +78,11 @@ perks:
     desc: "Each lemon produces 10 times more lemonade" # UI description
     condition: # Same as above
       - !Product [0, 100, Sold]
-    buy_price: # Same as `condition:`, but for !Product elements the ProductConditionKind is ignored
+    # Same as `condition:`, but for !Product elements the ProductConditionKind is ignored
+    # All of the listed will have to be consumed in order for the badge to take effect.
+    # If the buy_price is an empty list this means the perk is automatically activated
+    # when its conditions are met
+    buy_price:
       - !Money 10.0
       - !Material [1, 100]
     # This is where we define what the actual perk does.
@@ -86,7 +92,7 @@ perks:
     # - if it is !Product the id needs to match the id of the product this perk is attached to.
     #   It will affect the count of the built products at a time. F.e if currently you are building a 10 of the product <N>
     #   and the perk is [!Product [<N>, 10], Multiply] then you'll now build 100 of that product at a time (10 Multiply 10 = 100)
-    # Second element is the modifier. It can be: Add, Subtract, Multiply, Divide
+    # Second element is the modifier. It can be: Set, Add, Subtract, Multiply, Divide
     perk:
       - !Product [0, 10]
       - Multiply
@@ -94,7 +100,7 @@ automations:
   # automation, id 0
   - name: "Lemonade Machine" # name for displaying in UI
     kind: !Build 0 # Automation kind - either !Build <product_id> or !Buy <material_id>
-    timer: 1 # Duration in seconds, specifying an interval for running the automation. integer, optional
+    timer: 1 # Duration in seconds, specifying an interval for running the automation. floating, optional
     condition: # as above
       - !Product [0, 100, Sold]
     buy_price: # as above

@@ -36,9 +36,9 @@ fn procedural_state() -> State {
             Quantity::Product(LEMONADE, 200, Some(ProductConditionKind::Sold)).into(),
         ]),
         vec![
-            ProductMaterial::new(4, "Shop".to_string(), 1f64, 1.07f64, true),
-            ProductMaterial::new(100, "Lemon".to_string(), 0.01f64, 1.02f64, true),
-            ProductMaterial::new(0, "Sugar".to_string(), 0.1f64, 1.07f64, false),
+            ProductMaterial::new(4, None, "Shop".to_string(), 1f64, 1.07f64, true),
+            ProductMaterial::new(100, None, "Lemon".to_string(), 0.01f64, 1.02f64, true),
+            ProductMaterial::new(0, None, "Sugar".to_string(), 0.1f64, 1.07f64, false),
         ],
         vec![Product::new(
             "Lemonade".to_string(),
@@ -92,6 +92,7 @@ fn procedural_state() -> State {
 
 fn main() {
     let state = load(Path::new("res/lemonstand.yml")).unwrap();
+    //let state = load(Path::new("res/walking_sim.yml")).unwrap();
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {

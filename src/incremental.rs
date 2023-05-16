@@ -194,6 +194,12 @@ impl Relation {
         new_cond.quantity = self.quantity.op(&perk, |x, y| x / y);
         new_cond
     }
+
+    fn set(&self, perk: Quantity) -> Relation {
+        let mut new_cond = *self;
+        new_cond.quantity = self.quantity.op(&perk, |_, y| y);
+        new_cond
+    }
 }
 
 // Materials that can be bought.
@@ -212,6 +218,7 @@ pub struct ProductMaterial {
     pub(crate) base_price: Price,
     bought: Count,
     count: Count,
+    limit: Option<Count>,
     pub(crate) growth: f64,
     pub(crate) active: bool, // wether or not the product unlocked for the player
 }
@@ -219,16 +226,18 @@ pub struct ProductMaterial {
 impl ProductMaterial {
     pub fn new(
         init_bought: Count,
+        limit: Option<Count>,
         kind: String,
         base_price: Price,
         growth: f64,
         unlocked: bool,
     ) -> Self {
         Self {
-            bought: init_bought,
             name: kind,
-            count: init_bought,
             base_price,
+            bought: init_bought,
+            count: init_bought,
+            limit,
             growth,
             active: unlocked,
         }
@@ -259,6 +268,10 @@ impl ProductMaterial {
         self.count
     }
 
+    pub fn limit(&self) -> Option<Count> {
+        self.limit
+    }
+
     pub(crate) fn activate(&mut self) {
         self.active = true;
     }
@@ -275,6 +288,7 @@ impl ProductMaterial {
 // ```
 #[derive(PartialEq, Clone, Copy, Deserialize, Serialize)]
 pub enum PerkKind {
+    Set,
     Add,
     Subtract,
     Multiply,
@@ -819,6 +833,7 @@ impl State {
             let perk = perk.perk();
 
             match &perk.1 {
+                PerkKind::Set => new_cond = new_cond.set(perk.0),
                 PerkKind::Add => new_cond = new_cond.add(perk.0),
                 PerkKind::Subtract => new_cond = new_cond.sub(perk.0),
                 PerkKind::Multiply => new_cond = new_cond.multiply(perk.0),
@@ -932,6 +947,8 @@ impl State {
     pub fn construct_product(&mut self, id: ProductId) {
         let count = self.build_product_count(id);
 
+        println!("BUILD COUNT: {count}");
+
         if count == 0 {
             return;
         }
@@ -1004,29 +1021,52 @@ impl State {
         // Make sure we unlock all perks/badges/automations
         // which have their conditions met.
         macro_rules! unlock_perk {
-            ($name:ident) => {
+            ($name:ident) => {{
                 let mut unlocks = Vec::new();
                 for (id, inst) in self.$name.iter().enumerate() {
                     if self.check_conditions(&inst.condition()) {
                         unlocks.push(id);
                     }
                 }
-                for id in unlocks {
-                    self.$name[id].unlock();
+
+                for id in unlocks.iter() {
+                    self.$name[*id].unlock();
+                }
+
+                unlocks
+            }};
+        }
+
+        macro_rules! unlock_or_activate {
+            ($name:ident, $unlocks:ident) => {
+                for id in $unlocks {
+                    if self.$name[id].price().is_empty() {
+                        self.$name[id].activate()
+                    }
+                    self.$name[id].unlock()
                 }
             };
         }
 
         unlock_perk!(badges);
-        unlock_perk!(perks);
-        unlock_perk!(automations);
+
+        let unlocked = unlock_perk!(perks);
+        unlock_or_activate!(perks, unlocked);
+
+        let unlocked = unlock_perk!(automations);
+        unlock_or_activate!(automations, unlocked);
     }
 
     pub fn buy_material(&mut self, id: ProductMaterialId, cnt: u32) {
         for _ in 0..cnt {
-            let price = self.materials[id].price();
+            let m = &mut self.materials[id];
+            if m.count() >= m.limit().unwrap_or(Count::MAX) {
+                continue;
+            }
+
+            let price = m.price();
             if self.money >= price {
-                self.materials[id].buy();
+                m.buy();
                 self.money -= price;
             }
         }

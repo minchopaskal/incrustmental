@@ -98,7 +98,7 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                 }
 
                 for i in 0..state.materials().len() {
-                    if state.materials()[i].active() {
+                    if state.materials()[i].active() && state.materials()[i].price() > 0.0 {
                         if ui
                             .button(&format!(
                                 "Buy {}s",
@@ -123,6 +123,11 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                             {
                                 state.construct_product(i);
                             }
+
+                            if state.products()[i].price().is_none() {
+                                return;
+                            }
+
                             if ui
                                 .button(&format!(
                                     "+0.01 {}'s price",
@@ -134,7 +139,10 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                             }
 
                             if ui
-                                .button(&format!("-0.01 {:?}'s price", state.products()[i].name()))
+                                .button(&format!(
+                                    "-0.01 {}'s price",
+                                    state.products()[i].name().to_lowercase()
+                                ))
                                 .clicked()
                             {
                                 state.dec_price(i, 0.01);
@@ -151,7 +159,10 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                             }
 
                             if ui
-                                .button(&format!("-0.10 {:?}'s price", state.products()[i].name()))
+                                .button(&format!(
+                                    "-0.10 {}'s price",
+                                    state.products()[i].name().to_lowercase()
+                                ))
                                 .clicked()
                             {
                                 state.dec_price(i, 0.1);

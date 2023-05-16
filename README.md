@@ -4,11 +4,11 @@ An simple, feature-poor library for creating incremental games with rust, inspir
 
 ## Description
 
-Incrustmental is a simple library that reads from an YAML file a creates a `State` objects that holds the information for the whole gameplay.
+Incrustmental is a simple library that reads from an YAML or a Json file and creates a `State` objects that holds the information for the whole gameplay.
 
-It defines a set of predefined objects like a `Product` and a `Product Material` such that the user wants to build and sell products which use materials which on must be bought with money. Thus the games that are defined with this library will be somewhat rigid, unless the it is being extended.
+It defines a set of predefined objects like a `Product` and a `Product Material` such that the user wants to build and sell products which use materials which on their turn must be bought with money. Thus the games that are defined with this library will be somewhat rigid, unless it is being extended.
 
-One would also need to define their own UI or use the one provided in the bevy example, which uses egui and is rather simple and ugly.
+One would also need to define their own UI or use the one provided in the bevy example, which uses egui but it's rather simple and ugly.
 
 ## Usage
 
