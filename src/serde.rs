@@ -1,8 +1,9 @@
 use std::time::Duration;
 
+use either::Either;
 use serde::{Deserialize, Serialize};
 
-use crate::prelude::{Count, Price, ProductMaterial, Timer};
+use crate::prelude::{Count, Expr, Price, ProductMaterial, Timer};
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct ProductMaterialDef {
@@ -10,7 +11,8 @@ pub(crate) struct ProductMaterialDef {
     limit: Option<Count>,
     kind: String,
     base_price: Price,
-    growth: f64,
+    #[serde(with = "either::serde_untagged")]
+    growth: Either<f64, Expr>,
     unlocked: bool,
 }
 

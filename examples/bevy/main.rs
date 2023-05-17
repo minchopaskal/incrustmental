@@ -10,6 +10,7 @@ use std::{path::Path, time::Duration};
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use either::Either;
 use incrustmental::{
     incremental::State,
     prelude::{
@@ -36,9 +37,30 @@ fn procedural_state() -> State {
             Quantity::Product(LEMONADE, 200, Some(ProductConditionKind::Sold)).into(),
         ]),
         vec![
-            ProductMaterial::new(4, None, "Shop".to_string(), 1f64, 1.07f64, true),
-            ProductMaterial::new(100, None, "Lemon".to_string(), 0.01f64, 1.02f64, true),
-            ProductMaterial::new(0, None, "Sugar".to_string(), 0.1f64, 1.07f64, false),
+            ProductMaterial::new(
+                4,
+                None,
+                "Shop".to_string(),
+                1f64,
+                Either::Right("e ^ x + sqrt(25.0)".to_string()),
+                true,
+            ),
+            ProductMaterial::new(
+                100,
+                None,
+                "Lemon".to_string(),
+                0.01f64,
+                Either::Left(1.02f64),
+                true,
+            ),
+            ProductMaterial::new(
+                0,
+                None,
+                "Sugar".to_string(),
+                0.1f64,
+                Either::Left(1.07f64),
+                false,
+            ),
         ],
         vec![Product::new(
             "Lemonade".to_string(),
@@ -92,7 +114,9 @@ fn procedural_state() -> State {
 
 fn main() {
     let state = load(Path::new("res/lemonstand.yml")).unwrap();
+    //let state = load(Path::new("res/lemonstand.json")).unwrap();
     //let state = load(Path::new("res/walking_sim.yml")).unwrap();
+    //let state = procedural_state();
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {

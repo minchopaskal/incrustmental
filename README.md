@@ -39,5 +39,5 @@ Screenshot:
 
 ## TODOs
 
-- [ ] Ability to write custom defined formulas for materials' prices and products' interests.
+- [x] Ability to write custom defined formulas for materials' prices and products' interests.
 - [ ] Editor with egui UI for creating the game state, instead of manual writing the yaml/json files.

@@ -1,9 +1,11 @@
 use derive_getters::Getters;
+use either::Either;
+use mexprp::{Answer, Context};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::prelude::AutomationId;
+use crate::prelude::{AutomationId, Expr};
 use crate::serde::ProductMaterialDef;
 use crate::types::{Count, PerkId, Price, ProductId, ProductMaterialId};
 
@@ -219,7 +221,7 @@ pub struct ProductMaterial {
     bought: Count,
     count: Count,
     limit: Option<Count>,
-    pub(crate) growth: f64,
+    pub(crate) growth: Either<f64, Expr>,
     pub(crate) active: bool, // wether or not the product unlocked for the player
 }
 
@@ -229,7 +231,7 @@ impl ProductMaterial {
         limit: Option<Count>,
         kind: String,
         base_price: Price,
-        growth: f64,
+        growth: Either<f64, Expr>,
         unlocked: bool,
     ) -> Self {
         Self {
@@ -244,7 +246,31 @@ impl ProductMaterial {
     }
 
     pub fn price(&self) -> Price {
-        self.base_price * self.growth.powf((self.bought as f64) / 10.0)
+        self.base_price
+            * match &self.growth {
+                Either::Left(growth) => growth.powf((self.bought as f64) / 10.0),
+                Either::Right(expr) => {
+                    let mut ctx = Context::new();
+                    ctx.set_var("x", self.bought as f64);
+
+                    let ans = match mexprp::eval_ctx(expr, &ctx) {
+                        Ok(Answer::Single(ans)) => ans,
+                        Ok(Answer::Multiple(answers)) => {
+                            let mut ans = 0.0;
+                            for a in answers {
+                                if a > 0.0 {
+                                    ans = a;
+                                    break;
+                                }
+                            }
+                            ans
+                        },
+                        _ => 0.0,
+                    };
+
+                    ans
+                }
+            }
     }
 
     pub(crate) fn buy(&mut self) {
@@ -254,10 +280,6 @@ impl ProductMaterial {
 
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    pub fn growth(&self) -> f64 {
-        self.growth
     }
 
     pub fn active(&self) -> bool {
@@ -946,8 +968,6 @@ impl State {
 
     pub fn construct_product(&mut self, id: ProductId) {
         let count = self.build_product_count(id);
-
-        println!("BUILD COUNT: {count}");
 
         if count == 0 {
             return;

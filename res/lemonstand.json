@@ -6,7 +6,7 @@
         {"Product":[0,200,"Sold"]}
     ],
     "materials": [
-        { "init_bought": 4, "kind": "Shop", "base_price": 1.0,"growth": 1.07, "unlocked": true },
+        { "init_bought": 4, "kind": "Shop", "base_price": 1.0,"growth": "e ^ x + sqrt(25.0)", "unlocked": true },
         { "init_bought": 100, "kind": "Lemon", "base_price": 0.1, "growth": 1.02, "unlocked":true }
     ],
     "products": [

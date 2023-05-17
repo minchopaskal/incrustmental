@@ -1,4 +1,4 @@
-# In game state is defined by the following fields:
+# In-game state is defined by the following fields:
 # money: initial money, floating number
 # objective: sequence of Quantities:
 #   - !Money <float>,
@@ -28,17 +28,22 @@ materials:
     limit: ~ # We can set a limit capping the maximum amount of material we can have. optional, integer
     kind: "Shop" # Name for UI purposes
     base_price: 1.0 # Base price, it will grow with the specified growth factor, floating number
-    # Growth factor. The price of the product is calculated by the following formula:
-    # base_price * growth ^ <materials_bought> / 10.0
-    # There is a plan for that formula to be custom defined.
-    growth: 1.07
+    # Growth function. Price is calculated in the following manner
+    # base_price * growth()
+    # Growth can be defined as a function of `x`, where `x` is the number of materials bought.
+    # or you can use the default growth function by defining `growth: base_growth` where `base_growth` is a floating number.
+    # base_growth ^ <materials_bought> / 10.0
+    # The growth function supports all the usual maths operations(+, -, *, /, ^, sqrt), trigonometric functions(sin, cos, tan, asin, etc.)
+    # and the `pi` and `e` constants.
+    # If the expression is incorrect it will always output 0.0
+    growth: "e ^ x + sqrt(25.0)"
     unlocked: true # If true the material is unlocked at the beginning of the game, i.e it can be bought.
 
   # material id 1
   - init_bought: 100
     kind: "Lemon"
     base_price: 0.10
-    growth: 1.02
+    growth: 1.02 # Here we just use the default growth function
     unlocked: true
 products:
   # product id 0
