@@ -264,7 +264,7 @@ impl ProductMaterial {
                                 }
                             }
                             ans
-                        },
+                        }
                         _ => 0.0,
                     };
 
@@ -398,10 +398,13 @@ impl Perk {
 #[derive(Deserialize, Serialize)]
 pub struct Product {
     #[serde(skip)]
+    #[doc = "Current count in stock. Not sold, yet."]
     count: Count,
     #[serde(skip)]
+    #[doc = "Amount of stock sold."]
     sold: Count,
 
+    #[doc = "Name of the product."]
     name: String,
 
     #[doc = "Optional price at which the product is sold. If None it will not be sold, and the user may specify it as a material for other products."]
@@ -458,6 +461,10 @@ impl Product {
         self.count + self.sold
     }
 
+    // Interest towards the product. Treated by the library as a percentage.
+    // If the interest is above 100% the product will be bought at every tick,
+    // assuming all the sell conditions are met - i.e there are no `Sell` dependencies
+    // or all the `Sell` dependencies are available.
     pub fn interest(&self) -> f64 {
         match self.price {
             None => 0.0,
