@@ -1,9 +1,9 @@
 {
     "money":0.0,
     "objective": [
-        {"Money":10000.0},
-        {"Product":[0,500,null]},
-        {"Product":[0,200,"Sold"]}
+        {"Money":1000000.0},
+        {"Product":[0,50000,null]},
+        {"Product":[0,20000,"Sold"]}
     ],
     "materials": [
         { "init_bought": 4, "kind": "Shop", "base_price": 1.0,"growth": "e ^ x + sqrt(25.0)", "unlocked": true },
