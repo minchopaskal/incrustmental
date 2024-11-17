@@ -128,7 +128,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(EguiPlugin)
-        .add_state::<AppState>()
+        .init_state::<AppState>()
         .insert_resource(StateRes(state))
         .add_systems(Update, (
             main_menu.run_if(in_state(AppState::MainMenu)),

@@ -35,8 +35,8 @@ pub fn main_menu(
     });
 }
 
-pub fn handle_input(input: Res<Input<KeyCode>>, mut exit: EventWriter<AppExit>) {
-    if input.just_pressed(KeyCode::E) {
+pub fn handle_input(input: Res<ButtonInput<KeyCode>>, mut exit: EventWriter<AppExit>) {
+    if input.just_pressed(KeyCode::KeyE) {
         exit.send(AppExit);
     }
 }

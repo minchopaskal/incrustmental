@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.71"
-derive-getters = "0.2.1"
+derive-getters = "0.5.0"
 either = { version = "1.8.1", features = ["serde"] }
 mexprp = { version = "0.3.1", default-features = false }
 rand = "0.8.5"
@@ -16,5 +16,5 @@ serde_json = "1.0.96"
 serde_yaml = "0.9.21"
 
 [dev-dependencies]
-bevy = "0.11"
-bevy_egui = { version = "0.21", features = ["immutable_ctx"] }
+bevy = "0.13"
+bevy_egui = { version = "0.26", features = ["immutable_ctx"] }
