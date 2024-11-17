@@ -21,7 +21,7 @@ pub fn main_menu(
 ) {
     let egui_ctx = ctx.ctx();
     egui::CentralPanel::default().show(egui_ctx, |_| {
-        egui::Area::new("main")
+        egui::Area::new(Id::from("main"))
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(egui_ctx, |ui| {
                 if ui.button("Start").clicked() {
@@ -29,7 +29,7 @@ pub fn main_menu(
                 }
 
                 if ui.button("Exit").clicked() {
-                    exit.send(AppExit);
+                    exit.send(AppExit::default());
                 }
             });
     });
@@ -37,7 +37,7 @@ pub fn main_menu(
 
 pub fn handle_input(input: Res<ButtonInput<KeyCode>>, mut exit: EventWriter<AppExit>) {
     if input.just_pressed(KeyCode::KeyE) {
-        exit.send(AppExit);
+        exit.send(AppExit::default());
     }
 }
 
@@ -57,7 +57,7 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
     let egui_ctx = ctx.ctx();
 
     egui::CentralPanel::default().show(egui_ctx, |_| {
-        egui::Area::new("main")
+        egui::Area::new(Id::from("main"))
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(egui_ctx, |ui| {
                 ui.label(&format!("Money: ${:.2}", state.money()));
@@ -340,12 +340,12 @@ pub fn end_screen(mut exit: EventWriter<AppExit>, ctx: EguiContexts) {
     let egui_ctx = ctx.ctx();
 
     egui::CentralPanel::default().show(egui_ctx, |_| {
-        egui::Area::new("main")
+        egui::Area::new(Id::from("main"))
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(egui_ctx, |ui| {
                 ui.label("You win!");
                 if ui.button("Ok").clicked() {
-                    exit.send(AppExit);
+                    exit.send(AppExit::default());
                 }
             });
     });

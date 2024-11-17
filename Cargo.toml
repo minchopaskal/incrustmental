@@ -16,5 +16,5 @@ serde_json = "1.0.96"
 serde_yaml = "0.9.21"
 
 [dev-dependencies]
-bevy = "0.13"
-bevy_egui = { version = "0.26", features = ["immutable_ctx"] }
+bevy = "0.14"
+bevy_egui = { version = "0.30", features = ["immutable_ctx"] }
