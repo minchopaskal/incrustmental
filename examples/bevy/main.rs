@@ -127,14 +127,13 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugin(EguiPlugin)
-        .add_state::<AppState>()
+        .add_plugins(EguiPlugin)
+        .init_state::<AppState>()
         .insert_resource(StateRes(state))
-        .add_system(main_menu.in_set(OnUpdate(AppState::MainMenu)))
-        .add_systems(
-            (handle_input.before(update), update, draw.after(update))
-                .in_set(OnUpdate(AppState::Game)),
-        )
-        .add_system(end_screen.in_set(OnUpdate(AppState::EndGame)))
+        .add_systems(Update, (
+            main_menu.run_if(in_state(AppState::MainMenu)),
+            (handle_input, update, draw).chain().run_if(in_state(AppState::Game)),
+            end_screen.run_if(in_state(AppState::EndGame)),
+        ))
         .run();
 }
