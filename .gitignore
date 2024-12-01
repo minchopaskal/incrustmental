@@ -1,3 +1,7 @@
 target/
-.vscode/*
 TODO.md
+# Per Rust team recommendation, do not include Cargo.lock in version control for libraries.
+Cargo.lock
+# Editors
+.vscode/*
+.idea/*
