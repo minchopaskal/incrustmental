@@ -1084,15 +1084,19 @@ impl State {
         unlock_or_activate!(automations, unlocked);
     }
 
-    pub fn buy_material(&mut self, id: ProductMaterialId, cnt: u32) {
-        for _ in 0..cnt {
-            let m = &mut self.materials[id];
-            if m.count() >= m.limit().unwrap_or(Count::MAX) {
-                continue;
-            }
-
-            let price = m.price();
-            if self.money >= price {
+    pub fn buy_material(&mut self, id: ProductMaterialId, cnt: u64) {
+    
+        let cnt_f64 = cnt as f64;
+        let m = &mut self.materials[id];
+        if m.count() >= m.limit().unwrap_or(Count::MAX) {
+            return; // Exit early if the material is already at the limit
+        }
+    
+        let price = m.price();
+        let total_cost = price * cnt_f64;
+    
+        if self.money >= total_cost {
+            for _ in 0..cnt {
                 m.buy();
                 self.money -= price;
             }

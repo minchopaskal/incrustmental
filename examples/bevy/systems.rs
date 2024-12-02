@@ -101,12 +101,21 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                     if state.materials()[i].active() && state.materials()[i].price() > 0.0 {
                         if ui
                             .button(&format!(
-                                "Buy {}s",
+                                "Buy 1 {}",
                                 state.materials()[i].name().to_lowercase()
                             ))
                             .clicked()
                         {
                             state.buy_material(i, 1);
+                        }
+                        if ui
+                            .button(&format!(
+                                "Buy 10 {}s",
+                                state.materials()[i].name().to_lowercase()
+                            ))
+                            .clicked()
+                        {
+                            state.buy_material(i, 10);
                         }
                     }
                 }
@@ -166,6 +175,24 @@ pub fn draw(mut state: ResMut<StateRes>, ctx: EguiContexts) {
                                 .clicked()
                             {
                                 state.dec_price(i, 0.1);
+                            }
+                            if ui
+                                .button(&format!(
+                                    "-0.50 {}'s price",
+                                    state.products()[i].name().to_lowercase()
+                                ))
+                                .clicked()
+                            {
+                                state.inc_price(i, 0.5);
+                            }
+                            if ui
+                                .button(&format!(
+                                    "-0.50 {}'s price",
+                                    state.products()[i].name().to_lowercase()
+                                ))
+                                .clicked()
+                            {
+                                state.dec_price(i, 0.5);
                             }
                         });
                     }
